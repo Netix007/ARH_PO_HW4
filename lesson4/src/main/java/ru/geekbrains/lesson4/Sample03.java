@@ -29,7 +29,7 @@ public class Sample03 {
         mobileApp.searchTicket(new Date());
         mobileApp.buyTicket("1000000000000044");
 
-        BusStation busStation = new BusStation();
+        BusStation busStation = new BusStation(core.getTicketProvider());
 
     }
 
@@ -244,6 +244,18 @@ class BusStation{
     //TODO: ДОМАШНЯЯ РАБОТА
     // 1. Доработать модуль BusStation
     // 2. Переработать любой модуль, например TicketProvider, в рамках соответствия принципу контрактно-ориентированного программирования.
+
+    private final TicketProvider ticketProvider;
+
+    public BusStation(TicketProvider ticketProvider) {
+        this.ticketProvider = ticketProvider;
+    }
+
+    public boolean enterToBus(String qrcode){
+
+        return ticketProvider.checkTicket(qrcode);
+
+    }
 
 }
 
