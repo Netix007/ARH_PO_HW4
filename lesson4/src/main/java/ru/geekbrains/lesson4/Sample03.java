@@ -1,5 +1,6 @@
 package ru.geekbrains.lesson4;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
@@ -131,7 +132,7 @@ class Database{
 }
 
 
-class TicketProvider{
+class TicketProvider implements ITicketProvider{
     private final Database database;
     private final PaymentProvider paymentProvider;
 
@@ -141,11 +142,16 @@ class TicketProvider{
     }
 
     public Collection<Ticket> searchTicket(int clientId, Date date){
-
+        if (clientId <= 0) {
+            throw new RuntimeException("Некорректный ID клиента.");
+        }
         Collection<Ticket> tickets = new ArrayList<>();
         for (Ticket ticket: database.getTickets()) {
             if (ticket.getCustomerId() == clientId && ticket.getDate().equals(date))
                 tickets.add(ticket);
+        }
+        if (tickets.isEmpty()){
+            throw new RuntimeException("Билеты не найдены.");
         }
         return tickets;
 
@@ -153,13 +159,28 @@ class TicketProvider{
 
     public boolean buyTicket(int clientId, String cardNo){
 
+        if (clientId <= 0) {
+            throw new RuntimeException("Некорректный ID клиента.");
+        }
+        if (cardNo.length() != 16) {
+            throw new RuntimeException("Некорректный номер карты.");
+        }
+
         int orderId = database.createTicketOrder(clientId);
         double amount = database.getTicketAmount();
+        try {
+            paymentProvider.buy(orderId, cardNo, amount);
+        } catch (RuntimeException e) {
+            System.out.println("Не удалось купить билет.");
+        }
+        return true;
 
-        return paymentProvider.buy(orderId, cardNo, amount);
     }
 
     public boolean checkTicket(String qrcode){
+        if (qrcode.length() <= 10) {
+            throw new RuntimeException("Некорректный QR-код.");
+        }
         for (Ticket ticket: database.getTickets()) {
             if (ticket.getQrcode().equals(qrcode)){
                 ticket.setEnable(false);
@@ -167,11 +188,42 @@ class TicketProvider{
                 return true;
             }
         }
-        return false;
+        throw new RuntimeException("По вашему QR-коду билет не найден.");
     }
 
 }
 
+interface ITicketProvider {
+    /**
+     * Позволяет получить купленные билеты на указанную дату
+     *
+     * @param (clientId, date) id клиента, дата
+     * @return коллекция билетов
+     * @throws RuntimeException исключение при некорректности входных данных, а также при
+     *          отсутствии купленных билетов у клиента
+     */
+    Collection<Ticket> searchTicket(int clientId, Date date);
+
+    /**
+     * Позволяет купить билет
+     *
+     * @param (clientId, String cardNo) id клиента, номер карты
+     * @return результат выполнения операции покупки билета (логическое да или нет)
+     * @throws RuntimeException исключение при некорректности входных данных, а также при
+     *      *          неудачной попытке покупки билета
+     */
+    boolean buyTicket(int clientId, String cardNo);
+
+    /**
+     * Позволяет проверить наличие купленного билета по QR-коду, а также его состояние
+     *
+     * @param qrcode QR-код
+     * @return результат выполнения операции проверки билета по QR-коду (логическое да или нет)
+     * @throws RuntimeException исключение при некорректности входных данных, а также при
+     *      *      *          отсутствии билета с данным QR-кодом
+     */
+    boolean checkTicket(String qrcode);
+}
 class CustomerProvider{
     private final Database database;
 
